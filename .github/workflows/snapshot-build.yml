@@ -17,67 +17,6 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  container-linux:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-      packages: write
-    strategy:
-      matrix:
-        image:
-          - farmer
-          - node
-          - bootstrap-node
-        platform:
-          - arch: linux/amd64
-            dockerfile-suffix: ''
-            suffix: ubuntu-x86_64-${{ github.ref_name }}
-            image-suffix: ''
-          # We build AArch64
-          - arch: linux/amd64
-            dockerfile-suffix: '.aarch64'
-            suffix: ubuntu-aarch64-${{ github.ref_name }}
-            image-suffix: '-aarch64'
-
-    steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Log into registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v3
-        with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
-          tags: |
-            type=ref,event=tag
-          flavor: |
-            latest=false
-            suffix=${{ matrix.platform.image-suffix }}
-
-      - name: Build and push ${{ matrix.image }} image
-        id: build
-        uses: docker/build-push-action@v2
-        with:
-          file: Dockerfile-${{ matrix.image }}${{ matrix.platform.dockerfile-suffix }}
-          platforms: ${{ matrix.platform.arch }}
-          # Only push for releases
-          push: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            SUBSTRATE_CLI_GIT_COMMIT_HASH=${{ github.sha }}
-
   executables:
     strategy:
       matrix:
@@ -255,11 +194,3 @@ jobs:
           path: |
             executables/*
           if-no-files-found: error
-
-      - name: Upload node and farmer executables to assets
-        uses: alexellis/upload-assets@0.3.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          asset_paths: '["executables/*"]'
-        if: github.event_name == 'push' && github.ref_type == 'tag'
