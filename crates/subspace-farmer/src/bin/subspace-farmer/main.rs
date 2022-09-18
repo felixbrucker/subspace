@@ -142,6 +142,8 @@ struct DiskFarm {
     metadata_directory: PathBuf,
     /// How much space in bytes can farm use for plots (metadata space is not included)
     allocated_plotting_space: u64,
+    /// Address for farming rewards
+    reward_address: Option<PublicKey>,
 }
 
 impl FromStr for DiskFarm {
@@ -149,13 +151,14 @@ impl FromStr for DiskFarm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s.split(',').collect::<Vec<_>>();
-        if parts.len() != 3 {
-            return Err("Must contain 3 coma-separated components".to_string());
+        if parts.len() != 3 && parts.len() != 4 {
+            return Err("Must contain 3 or 4 coma-separated components".to_string());
         }
 
         let mut plot_directory = None;
         let mut metadata_directory = None;
         let mut allocated_plotting_space = None;
+        let mut reward_address = None;
 
         for part in parts {
             let part = part.splitn(2, '=').collect::<Vec<_>>();
@@ -191,6 +194,11 @@ impl FromStr for DiskFarm {
                             .as_u64(),
                     );
                 }
+                "reward-address" => {
+                    reward_address.replace(parse_ss58_reward_address(value).map_err(|error| {
+                        format!("Failed to parse `reward-address` \"{value}\": {error}")
+                    })?);
+                }
                 key => {
                     return Err(format!(
                         "Key \"{key}\" is not supported, only `hdd`, `ssd` or `size`"
@@ -209,6 +217,7 @@ impl FromStr for DiskFarm {
             allocated_plotting_space: allocated_plotting_space.ok_or({
                 "`size` key is required with path to directory where plots will be stored"
             })?,
+            reward_address,
         })
     }
 }
@@ -289,6 +298,7 @@ async fn main() -> Result<()> {
                     plot_directory: base_path.clone(),
                     metadata_directory: base_path,
                     allocated_plotting_space: get_usable_plot_space(0),
+                    reward_address: None,
                 }]
             } else {
                 for farm in &command.farm {
@@ -339,6 +349,7 @@ async fn main() -> Result<()> {
                     plot_directory: base_path.clone(),
                     metadata_directory: base_path,
                     allocated_plotting_space: get_usable_plot_space(plot_size),
+                    reward_address: None,
                 }]
             } else {
                 for farm in &command.farm {
@@ -367,6 +378,7 @@ async fn main() -> Result<()> {
                     plot_directory: base_path.clone(),
                     metadata_directory: base_path,
                     allocated_plotting_space: get_usable_plot_space(0),
+                    reward_address: None,
                 }]
             } else {
                 command.farm
@@ -405,6 +417,7 @@ async fn main() -> Result<()> {
                     plot_directory: base_path.clone(),
                     metadata_directory: base_path,
                     allocated_plotting_space: get_usable_plot_space(plot_size),
+                    reward_address: None,
                 }]
             } else {
                 for farm in &command.farm {

@@ -134,7 +134,7 @@ pub(crate) async fn farm_multi_disk(
             disk_concurrency,
             archiving_client,
             farming_client,
-            reward_address,
+            reward_address: disk_farm.reward_address.unwrap_or(reward_address),
             bootstrap_nodes: bootstrap_nodes.clone(),
             listen_on: vec![],
             enable_dsn_archiving: matches!(archiving, ArchivingFrom::Dsn),
